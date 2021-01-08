@@ -6,8 +6,8 @@ function get_all_blog_posts()
     all_posts = Dict()
     for year in this_year:-1:first_year
         ys = "$year"
-        base = joinpath("blog", ys)
-        isdir(base) || continue
+	base = joinpath("blog", ys)
+	isdir(base) || continue
         all_posts[ys] = Dict()
         for month in 12:-1:1
             ms = "0"^(month < 10) * "$month"
@@ -26,8 +26,8 @@ function get_all_blog_posts()
                 isnothing(pubdate) && (pubdate = Date(year, month, 1))
                 dates[i] = pubdate
             end
-            sort!(posts, by=dates, rev=true)
-            all_posts[ys][ms] = posts
+            Π = sortperm(dates, rev=true)
+            all_posts[ys][ms] = posts[Π] .=> dates[Π]
         end
     end
     return all_posts
@@ -52,34 +52,115 @@ function hfun_blog_calendar()
     return String(take!(io))
 end
 
-function hfun_blog_list()
-    # <section id="2018" class="taxonomy-section">
-    # <h2 class="taxonomy-title">2018</h2>
-    # <div class="entries-list">
-    #
-    #   <article class="entry h-entry">
-    #     <header class="entry-header">
-    #       <h3 class="entry-title p-name">
-    #         <a href="/so-simple-theme/hidden-post/" rel="bookmark">Hidden Post
-    #         </a>
-    #       </h3>
-    #     </header>
-    #
-    #     <div class="entry-excerpt p-summary">
-    #       <p>This post has YAML Front Matter of <code class="language-plaintext highlighter-rouge">hidden: true</code> and should not appear in <code class="language-plaintext highlighter-rouge">paginator.posts</code>.</p>
-    #     </div>
-    #
-    #     <footer class="entry-meta">
-    #       <span class="read-time">~1 min read</span>
-    #       <time class="entry-date dt-published" datetime="2018-02-25T00:00:00+00:00">February 25, 2018
-    #       </time>
-    #     </footer>
-    #   </article>
-    #
-    #   <!-- Add another article here if multiple -->
-    #
-    # </div>
-    # <a href="#page-title" class="back-to-top">Back to Top &uarr;</a>
-    # </section>
-    return ""
+str(v) = ifelse(isnothing(v), "", v)
+
+function posts_per_year(year_posts)
+    post_entries = String[]
+    for (_, posts_list) in year_posts
+        for (post, date) in posts_list
+            post_short = str(pagevar(post, :short))
+            post_title = str(pagevar(post, :title))
+            push!(post_entries, """
+                <article class="entry h-entry">
+                  <header class="entry-header">
+                    <h3 class="entry-title p-name">
+                      <a href="/$post" rel="bookmark">$post_title</a>
+                    </h3>
+                  </header>
+                  <div class="entry-excerpt p-summary">
+                    $(Franklin.fd2html(post_short, internal=true))
+                  </div>
+                  <footer class="entry-meta">
+                    <!-- <span class="read-time">~1 min read</span> -->
+                    <time class="entry-date dt-published" datetime="$date">$date</time>
+                  </footer>
+                </article>
+                """)
+        end
+    end
+    return post_entries
 end
+
+function hfun_blog_calendar_list()
+    all_posts = get_all_blog_posts()
+    io = IOBuffer()
+    for ys in keys(all_posts)
+        write(io, """
+            <section id="$ys" class="taxonomy-section">
+              <h2 class="taxonomy-title">$ys</h2>
+              <div class="entries-list">
+            """)
+        write(io, prod(posts_per_year(all_posts[ys])))
+        write(io, """
+              </div> <!-- entries list -->
+              <a href="#page-title" class="back-to-top">Back to Top &uarr;</a>
+            </section>
+            """)
+    end
+    return String(take!(io))
+end
+
+
+function blog_list()
+    all_posts = [posts_per_year(year_posts) for year_posts in values(get_all_blog_posts())]
+    return vcat(all_posts...)
+end
+
+# function hfun_home_pagination()
+#     name = locvar(:paginate_itr)
+#     isnothing(name) && return ""
+#     iter    = locvar(name)
+#     npp     = locvar(:paginate_npp)
+#     niter   = length(iter)
+#     n_pages = ceil(Int, niter / npp)
+#     io      = IOBuffer()
+#     for (i, pg) in zip(vcat([1, 1], 2:n_pages),
+#                        vcat(["index.html"], ["/$i/index.html" for i in 1:n_pages]))
+#         write(io, """
+#             {{ispage $pg}}
+#               <nav class="pagination">
+#                 <ul>
+#             """)
+#         # PREVIOUS ------------------------------------------------------------
+#         if i == 1
+#             write(io, """
+#                 <li><a href="#" class="disabled"><span aria-hidden="true">Previous</span></a></li>
+#                 """)
+#         else
+#             write(io, """
+#                 <li><a href="/$(i-1)/">Previous</a></li>
+#                 """)
+#         end
+#         for j = 1:i-1
+#             write(io, """
+#                 <li><a href="/$j/">$j</a></li>
+#                 """)
+#         end
+#         # CURRENT -------------------------------------------------------------
+#         write(io, """
+#             <li><a href="#" class="disabled current">$i</a></li>
+#             """)
+#         for j = i+1:n_pages
+#             write(io, """
+#                 <li><a href="/$j/">$j</a></li>
+#                 """)
+#         end
+#         # NEXT ----------------------------------------------------------------
+#         if i == n_pages
+#             write(io, """
+#                 <li><a href="#" class="disabled"><span aria-hidden="true">Next</span></a></li>
+#                 """)
+#         else
+#             write(io, """
+#                 <li><a href="/$(i+1)/">Next</a></li>
+#                 """)
+#         end
+#         # DONE ----------------------------------------------------------------
+#         write(io, """
+#                     </ul>
+#                   </nav>
+#                 {{end}}
+#                 """)
+#     end
+#     return String(take!(io))
+# end

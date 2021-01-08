@@ -6,6 +6,8 @@ function get_all_blog_posts()
     all_posts = Dict()
     for year in this_year:-1:first_year
         ys = "$year"
+        base = joinpath("blog", ys)
+        isdir(base) || continue
         all_posts[ys] = Dict()
         for month in 12:-1:1
             ms = "0"^(month < 10) * "$month"

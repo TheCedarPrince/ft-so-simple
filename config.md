@@ -1,7 +1,7 @@
 +++
-author = "The Oracle"
+author = "Jacob S. Zelko"
 
-website_title = "So Simple"
+website_title = "the cedar ledge"
 website_descr = "A simple theme for words and pictures."
 
 prepath = "ft-so-simple"
